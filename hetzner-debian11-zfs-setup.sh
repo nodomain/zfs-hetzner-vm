@@ -26,6 +26,7 @@ declare -a v_selected_disks
 v_swap_size=                 # integer
 v_free_tail_space=           # integer
 v_hostname=
+v_network_interface=
 v_kernel_variant=
 v_zfs_arc_max_mb=
 v_root_password=
@@ -42,6 +43,7 @@ c_default_zfs_arc_max_mb=250
 c_default_bpool_tweaks="-o ashift=12 -O compression=lz4"
 c_default_rpool_tweaks="-o ashift=12 -O acltype=posixacl -O compression=zstd-9 -O dnodesize=auto -O relatime=on -O xattr=sa -O normalization=formD"
 c_default_hostname=terem
+c_default_network_device=eth0
 c_zfs_mount_dir=/mnt
 c_log_dir=$(dirname "$(mktemp)")/zfs-hetzner-vm
 c_install_log=$c_log_dir/install.log
@@ -388,6 +390,21 @@ function ask_hostname {
   print_variables v_hostname
 }
 
+function ask_network_interface {
+  # shellcheck disable=SC2119
+  print_step_info_header
+
+  local network_interface_invalid_message=
+
+  while [[ ! $v_network_interface =~ ^[a-z][a-zA-Z_:.-]+$ ]]; do
+    v_network_interface=$(dialog --inputbox "${network_interface_invalid_message}Set the network interface name" 30 100 "$c_default_network_interface" 3>&1 1>&2 2>&3)
+
+    network_interface_invalid_message="Invalid network interface name! "
+  done
+
+  print_variables v_network_interface
+}
+
 function determine_kernel_variant {
   if dmidecode | grep -q vServer; then
     v_kernel_variant="-cloud"
@@ -479,6 +496,8 @@ ask_zfs_experimental
 ask_root_password
 
 ask_hostname
+
+ask_network_interface
 
 determine_kernel_variant
 
@@ -618,15 +637,16 @@ CONF
 
 ip6addr_prefix=$(ip -6 a s | grep -E "inet6.+global" | sed -nE 's/.+inet6\s(([0-9a-z]{1,4}:){4,4}).+/\1/p')
 
-cat <<CONF > /mnt/etc/systemd/network/10-eth0.network
+cat <<CONF > /mnt/etc/systemd/network/10-${v_network_interface}.network
 [Match]
-Name=eth0
+Name=${v_network_interface}
 
 [Network]
 DHCP=ipv4
 Address=${ip6addr_prefix}:1/64
 Gateway=fe80::1
 CONF
+
 chroot_execute "systemctl enable systemd-networkd.service"
 
 
