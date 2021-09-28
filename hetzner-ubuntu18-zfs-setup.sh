@@ -361,7 +361,7 @@ function ask_network_interface {
 
   local network_interface_invalid_message=
 
-  while [[ ! $v_network_interface =~ ^[a-z][a-zA-Z_:.-]+$ ]]; do
+  while [[ ! $v_network_interface =~ ^[a-z]{3}[0-3]{1}$ ]]; do
     v_network_interface=$(dialog --inputbox "${network_interface_invalid_message}Set the network interface name" 30 100 "$c_default_network_interface" 3>&1 1>&2 2>&3)
 
     network_interface_invalid_message="Invalid network interface name! "
